@@ -1,0 +1,92 @@
+# Status checks for the documentation site. The job "Status checks passed" is
+# the one check the privacybydesign organization requires before a merge.
+name: Status checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays: image scan against a fresh database
+  workflow_dispatch:
+
+permissions: {}
+
+# A new push to a PR cancels the PR's previous run. Other events get a
+# group of their own (run_id), so they never wait for or cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    uses: privacybydesign/github-workflows/.github/workflows/node-checks.yml@v1
+    permissions:
+      contents: read
+    with:
+      node-version: "22" # same as the Dockerfile's build stage
+      scripts: test docs:build
+      ignore-scripts: true # block dependency install scripts
+      allowed-scripts: esbuild
+
+  # Checks that every pinned source link in the docs still resolves. It calls
+  # the GitHub API, so it needs a token and cannot run inside node-checks.
+  check-links:
+    name: Check pinned source links
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Check pinned source links
+        run: npm run check:links
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build and scan the image on PRs without pushing it.
+  docker:
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    uses: privacybydesign/github-workflows/.github/workflows/docker-publish.yml@v1
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      id-token: write
+      attestations: write
+    with:
+      push-image: false
+
+  dependency-review:
+    uses: privacybydesign/github-workflows/.github/workflows/dependency-review.yml@v1
+    permissions:
+      contents: read
+      pull-requests: write
+
+  workflow-lint:
+    uses: privacybydesign/github-workflows/.github/workflows/workflow-lint.yml@v1
+    permissions:
+      contents: read
+
+  # Single required check: job names inside this workflow can change without
+  # touching the organization ruleset.
+  passed:
+    name: Status checks passed
+    if: always()
+    needs: [node, check-links, docker, dependency-review, workflow-lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: All required jobs succeeded
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if grep -qE '"(failure|cancelled)"' <<< "$RESULTS"; then exit 1; fi
