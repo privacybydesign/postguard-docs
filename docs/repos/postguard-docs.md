@@ -1,6 +1,6 @@
 # postguard-docs
 
-[GitHub](https://github.com/encryption4all/postguard-docs) · VitePress · Documentation Site
+[GitHub](https://github.com/privacybydesign/postguard-docs) · VitePress · Documentation Site
 
 The site you are reading. It holds the guides, the SDK reference, integration instructions, and a page for every repository in the [encryption4all](https://github.com/encryption4all) organization. Every PostGuard README points here, so documentation detail that does not belong in the repo it describes belongs on that repo's page under `/repos/`.
 
@@ -134,7 +134,7 @@ Plain, direct English, common words over elevated ones. Use "is" and "are" freel
 
 ## Deployment
 
-`ci.yml` builds the site and pushes a Docker image to `ghcr.io/encryption4all/postguard-docs:edge` on every push to `main`. There is no deploy step. The host running production has to pull the new `edge` image and restart the container, or it keeps serving the previous build.
+`delivery.yml` builds the site and pushes a Docker image to `ghcr.io/privacybydesign/postguard-docs:edge` on every push to `main`. There is no deploy step. The host running production has to pull the new `edge` image and restart the container, or it keeps serving the previous build.
 
 To check for a stale deployment, compare the `last-modified` header on `index.html` against the latest commit date on `main`:
 

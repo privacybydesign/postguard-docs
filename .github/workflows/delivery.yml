@@ -1,0 +1,21 @@
+# Build, scan (Anchore) and publish the container image to ghcr.io/privacybydesign/postguard-docs.
+# A push to main publishes :edge. Pull request builds are scanned in "Status checks"
+# without being pushed, and the published image is re-scanned weekly by "Image rescan".
+name: Delivery
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  docker:
+    uses: privacybydesign/github-workflows/.github/workflows/docker-publish.yml@v1
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      id-token: write
+      attestations: write
